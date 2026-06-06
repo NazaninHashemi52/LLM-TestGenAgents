@@ -68,3 +68,10 @@ def test_error_tester_integer_divide_by_zero():
     """Test integer_divide by zero raises ZeroDivisionError."""
     with pytest.raises(ZeroDivisionError):
         integer_divide(1, 0)
+
+
+def test_edge_case_tester_power_zero_exponent():
+    """Test power with zero exponent returns one."""
+    assert power(5, 0) == 1
+    calc = Calculator()
+    assert calc.power(5, 0) == 1
