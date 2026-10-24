@@ -1,5 +1,7 @@
 # LLM Agents for Collaborative Test Case Generation
 
+> Started as a 4-person team project at Politecnico di Torino. This repository is maintained and extended independently by Nazanin Hashemi.
+
 A research framework for comparing three LLM-based test case generation strategies — single-agent, competitive multi-agent, and collaborative multi-agent — evaluated against code coverage, mutation testing, and test diversity metrics.
 
 ---
