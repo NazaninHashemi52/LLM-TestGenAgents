@@ -5,7 +5,32 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — v2.0.0 (in development)
+## [Unreleased] — v2.1.0 (in development)
+
+Builds on v2.0.0: the agents are also evaluated on real third-party Python
+libraries, not only on modules written for this project.
+
+### Added
+- Three pinned PyPI libraries as Code Under Test modules: `inflection` 0.5.1
+  (string inflection), `roman` 4.2 (Roman numerals) and `toposort` 1.10
+  (topological sort).
+- `impl/libraries.json` registry. Adding a library is one entry: package,
+  version, wheel SHA-256, and the source file to test.
+- `scripts/fetch_libraries.py`, which downloads each pinned wheel, checks
+  its hash and copies the module into `impl/cut/`. `--check` verifies the
+  copies against the registry without downloading.
+- `run_all.py --libraries` to run only the third-party libraries.
+- `run_all.py --dry-run` and an offline `mock` LLM provider, to check the
+  whole pipeline without an LLM. Output goes to `impl/dry_run/`, so real
+  results are never overwritten.
+- `source` column in `summary.csv` (`built-in`, or `package==version`), and
+  library versions in the summary headings.
+
+### Changed
+- The evaluation scripts accept a `RESULTS_DIR` environment variable to
+  write results somewhere other than `impl/results/`.
+
+## [2.0.0] — in development
 
 Development of v2 started in October 2026. It is maintained independently
 by Nazanin Hashemi on top of the v1.0.0 team release.

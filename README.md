@@ -12,8 +12,9 @@ A research framework for comparing three LLM-based test case generation strategi
 |---|---|---|---|
 | [v1.0.0](https://github.com/NazaninHashemi52/LLM-TestGenAgents/releases/tag/v1.0.0) | Released | June 2026 | Team project release: three strategies, four LLM providers, `calculator` module |
 | v2.0.0 | In development | Since October 2026 | Multi-module evaluation, CI, and unit tests for the framework |
+| v2.1.0 | In development | October 2026 | Real third-party libraries (`inflection`, `roman`, `toposort`) as evaluation targets, offline dry run |
 
-The documentation below describes v1.0.0. See [CHANGELOG.md](CHANGELOG.md) for details.
+The documentation below describes the latest development version (v2.1.0). See [CHANGELOG.md](CHANGELOG.md) for details.
 
 ---
 
