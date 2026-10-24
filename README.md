@@ -6,6 +6,17 @@ A research framework for comparing three LLM-based test case generation strategi
 
 ---
 
+## Versions
+
+| Version | Status | Date | Summary |
+|---|---|---|---|
+| [v1.0.0](https://github.com/NazaninHashemi52/LLM-TestGenAgents/releases/tag/v1.0.0) | Released | June 2026 | Team project release: three strategies, four LLM providers, `calculator` module |
+| v2.0.0 | In development | Since October 2026 | Multi-module evaluation, CI, and unit tests for the framework |
+
+The documentation below describes v1.0.0. See [CHANGELOG.md](CHANGELOG.md) for details.
+
+---
+
 ## Project Description
 
 This project investigates how different multi-agent architectures affect the quality of automatically generated pytest test suites. A pluggable LLM abstraction layer routes requests to one of four supported providers (Ollama, Groq, Gemini, OpenRouter), making the framework model-agnostic.
@@ -305,4 +316,4 @@ Pass a JSON file to `generate_collab.py` with `--prompt-roles`:
 
 ## License
 
-> No license file is currently present in this repository. *(Assumption: to be added.)*
+Released under the [MIT License](LICENSE).
