@@ -70,13 +70,20 @@ def eval_coverage(
         f"{project_root}{os.pathsep}{existing}" if existing else str(project_root)
     )
 
+    # Only run this module's test file, so other modules' tests in the same
+    # strategy directory don't affect (or slow down) the measurement.
+    test_target = Path(test_dir) / f"test_{cut_module}.py"
+    if not test_target.exists():
+        print(f"[coverage] Warning: {test_target} not found, running all of {test_dir}")
+        test_target = Path(test_dir)
+
     # Step 1: run tests under coverage (branch tracking enabled)
     subprocess.run(
         [
             sys.executable, "-m", "coverage", "run",
             "--branch",
             f"--source={cut_dir}",
-            "-m", "pytest", str(test_dir),
+            "-m", "pytest", str(test_target),
         ],
         env=env,
         capture_output=True,
@@ -163,10 +170,10 @@ def eval_coverage(
             output_file.write_text(json.dumps(metrics, indent=2))
 
     # Always persist metrics as JSON for aggregate.py to consume.
-    # Naming convention: {method}_coverage.json where method = test_dir.name
+    # Naming convention: {cut_module}_{method}_coverage.json where method = test_dir.name
     results_dir = Path(__file__).parent.parent / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
-    auto_out = results_dir / f"{Path(test_dir).name}_coverage.json"
+    auto_out = results_dir / f"{cut_module}_{Path(test_dir).name}_coverage.json"
     auto_out.write_text(json.dumps(metrics, indent=2))
 
     return metrics

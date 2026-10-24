@@ -30,7 +30,9 @@ Generated test suites are evaluated across three axes:
 - **AST-based code validation and retry logic** — generated code is parsed and retried up to 3 times
 - **Multi-agent merge pipeline** — deduplicates imports and renames conflicting test functions
 - **Three evaluation scripts** producing structured JSON output
-- **Aggregation script** that combines all results into a single comparison CSV/JSON/HTML report
+- **Six CUT modules** of increasing difficulty, from simple string functions to collaborating classes
+- **Aggregation script** that builds one comparison table per module plus an overall average (CSV/JSON/HTML + Markdown)
+- **`run_all.py`** to run every strategy and evaluation on every module in one command
 
 ---
 
@@ -43,7 +45,12 @@ Generated test suites are evaluated across three axes:
     ├── pyproject.toml              # Project metadata and dependencies
     ├── cut/                        # Code Under Test (CUT) modules
     │   ├── __init__.py
-    │   └── calculator.py           # Example CUT: stateless functions + Calculator class
+    │   ├── calculator.py           # Stateless functions + Calculator class
+    │   ├── string_utils.py         # Simple string functions (baseline)
+    │   ├── stack_queue.py          # Stateful data structures (Stack, circular-buffer Queue)
+    │   ├── bank_account.py         # Class with custom exceptions, limits and edge cases
+    │   ├── date_parser.py          # Date parsing/arithmetic with many boundary cases
+    │   └── inventory.py            # Several collaborating classes (hardest)
     ├── src/                        # Core utilities
     │   ├── __init__.py
     │   └── llm.py                  # LLM abstraction layer (Ollama, Groq, Gemini, OpenRouter)
@@ -55,25 +62,17 @@ Generated test suites are evaluated across three axes:
     │   ├── eval_coverage.py        # Coverage evaluation (coverage.py)
     │   ├── eval_mutation.py        # Mutation evaluation (mutmut)
     │   ├── eval_diversity.py       # Diversity evaluation (AST-based)
-    │   └── aggregate.py            # Aggregate all results into summary table
+    │   ├── aggregate.py            # Aggregate results: per-module tables + overall average
+    │   └── run_all.py              # Run every strategy + evaluation on every module
     ├── tests_generated/            # Output from generation scripts
-    │   ├── single/
-    │   │   └── test_calculator.py
+    │   ├── single/                 # one test_<module>.py per CUT module
     │   ├── competitive/
-    │   │   └── test_calculator.py
     │   └── collab/
-    │       └── test_calculator.py
-    └── results/                    # Evaluation outputs (JSON + CSV)
-        ├── single_coverage.json
-        ├── single_mutation.json
-        ├── single_diversity.json
-        ├── competitive_coverage.json
-        ├── competitive_mutation.json
-        ├── competitive_diversity.json
-        ├── collab_coverage.json
-        ├── collab_mutation.json
-        ├── collab_diversity.json
-        └── summary.csv
+    └── results/                    # Evaluation outputs (JSON + CSV + Markdown)
+        ├── <module>_<method>_<metric>.json   # e.g. bank_account_collab_mutation.json
+        ├── summary.csv             # one row per (module, method)
+        ├── summary_overall.csv     # per-method mean across all modules
+        └── summary.md              # Markdown tables, one per module + overall
 ```
 
 ---
@@ -172,6 +171,23 @@ export OPENROUTER_MODEL=qwen/qwen3-8b:free    # default
 
 All commands are run from the `impl/` directory.
 
+### Quick start: run everything
+
+`run_all.py` runs every generation strategy and every evaluation on every module in
+`cut/`, then aggregates the results:
+
+```bash
+python scripts/run_all.py                                   # all modules, all strategies
+python scripts/run_all.py --modules bank_account inventory  # only some modules
+python scripts/run_all.py --skip-generate                   # re-evaluate existing tests (no LLM calls)
+python scripts/run_all.py --evaluations coverage diversity  # skip slow mutation testing
+```
+
+A failing step (for example, the LLM returning invalid code) is reported at the end
+but does not stop the remaining runs.
+
+The steps below run each stage by hand for a single module.
+
 ### 1. Generate tests
 
 **Single-agent**
@@ -223,10 +239,13 @@ python scripts/eval_mutation.py \
 ```bash
 python scripts/eval_diversity.py \
   --test-dir tests_generated/single \
+  --cut-module calculator \
   --diversity-metric syntactic   # or: semantic | coverage
 ```
 
-Each script writes a JSON file to `results/`.
+Each script evaluates only `test_<module>.py` inside the test directory and writes
+`results/<module>_<method>_<metric>.json` (e.g. `calculator_single_coverage.json`),
+so results for different modules never overwrite each other.
 
 ### 4. Aggregate results
 
@@ -236,13 +255,19 @@ python scripts/aggregate.py \
   --output-format csv     # or: json | html
 ```
 
-Output: `results/summary.csv` — one row per generation method, one column per metric.
+Outputs:
+- `results/summary.csv` — one row per (module, method), one column per metric
+- `results/summary_overall.csv` — per-method mean of every metric across all modules
+- `results/summary.md` — Markdown tables (one per module plus the overall average), ready to paste into this README
 
 ---
 
 ## Example Results
 
-Results from running all three strategies on the `calculator` CUT module:
+Results from running all three strategies on the `calculator` CUT module.
+Results for the five new modules (`string_utils`, `stack_queue`, `bank_account`,
+`date_parser`, `inventory`) will be added after running `python scripts/run_all.py`;
+`results/summary.md` then contains one table per module plus the overall average.
 
 | Method | Line Coverage | Branch Coverage | Mutation Score | Diversity Score |
 |---|---|---|---|---|
@@ -260,7 +285,7 @@ Key observations:
 ## Current Limitations
 
 - **No LLM response caching** — every run makes fresh API calls; repeated evaluation is slow and may incur API costs.
-- **Single output file per strategy** — the framework does not support generating multiple test files per strategy.
+- **One test file per module per strategy** — each run overwrites `tests_generated/<strategy>/test_<module>.py`; repeated runs (for variance) are not kept.
 - **Function coverage is approximate** — estimated from executed line numbers in the AST, not actual function entry tracking.
 - **Retry logic is provider-specific** — rate-limit retries are implemented only for OpenRouter; other providers do not retry on transient failures.
 - **CalculatorError is defined but unused** — the custom exception class in `calculator.py` is dead code in the current version.
@@ -281,13 +306,15 @@ Edit `impl/src/llm.py`:
 
 ### Adding a new CUT module
 
-1. Place the module in `impl/cut/` and ensure `impl/cut/__init__.py` exports it.
-2. Pass `--cut-module <module_name>` to the generation and evaluation scripts.
+1. Place the module in `impl/cut/`, e.g. `impl/cut/my_module.py`.
+2. Run `python scripts/run_all.py --modules my_module` (or pass `--cut-module my_module`
+   to the individual scripts). `run_all.py` picks up every non-underscore file in `cut/` automatically.
 
 ### Adding a new evaluation metric
 
 1. Create `impl/scripts/eval_<metric>.py` following the structure of existing eval scripts.
-2. Output results as `results/<method>_<metric>.json` with a flat numeric dict.
+2. Output results as `results/<module>_<method>_<metric>.json` with a flat numeric dict,
+   and add `<metric>` to `EVAL_TYPES` in `aggregate.py` and `EVALUATIONS` in `run_all.py`.
 3. The `aggregate.py` script will automatically pick up the new JSON files on the next run.
 
 ### Custom collaboration roles

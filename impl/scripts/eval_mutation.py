@@ -155,6 +155,12 @@ def eval_mutation(
         target_parts = Path(rel_test_dir).parts  # e.g. ('tests_generated', 'single')
         target_subdir = target_parts[1] if len(target_parts) > 1 else rel_test_dir
         ignored_globs = [f"tests_generated/{d}/*" for d in sorted(all_test_subdirs) if d != target_subdir]
+        # The target dir holds one test file per CUT module; only run this module's.
+        ignored_globs += [
+            f"{Path(rel_test_dir).as_posix()}/{f.name}"
+            for f in sorted(abs_test_dir.glob("test_*.py"))
+            if f.name != f"test_{cut_module}.py"
+        ]
         conftest = impl_dir / "conftest.py"
         conftest_existed = conftest.exists()
         conftest_backup = conftest.read_text() if conftest_existed else None
@@ -210,10 +216,10 @@ def eval_mutation(
         "timeout": timeout,
     }
 
-    # Persist metrics for aggregate.py
+    # Persist metrics for aggregate.py — naming: {cut_module}_{method}_mutation.json
     results_dir = impl_dir / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
-    auto_out = results_dir / f"{Path(test_dir).name}_mutation.json"
+    auto_out = results_dir / f"{cut_module}_{Path(test_dir).name}_mutation.json"
     auto_out.write_text(json.dumps(metrics, indent=2))
 
     if output_file:

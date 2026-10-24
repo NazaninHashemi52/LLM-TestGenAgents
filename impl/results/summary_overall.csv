@@ -1,0 +1,4 @@
+method,n_modules,line_coverage,branch_coverage,function_coverage,score_mutation,diversity_score_diversity,killed_mutation,similarity_diversity,survived_mutation,timeout_mutation,unique_patterns_diversity
+single,1,0.6235,0.3333,1.0,0.4048,0.3245,17.0,0.6755,25.0,0.0,5.0
+competitive,1,0.7059,0.5,1.0,0.3095,0.2482,13.0,0.7518,29.0,0.0,4.0
+collab,1,0.7059,0.5833,1.0,0.0714,0.1691,3.0,0.8309,39.0,0.0,5.0

@@ -44,6 +44,7 @@ def _jaccard_similarity(a: Set[str], b: Set[str]) -> float:
 
 def eval_diversity(
     test_dir: Path,
+    cut_module: str,
     output_file: Path = None,
     diversity_metric: str = "syntactic",
 ) -> dict:
@@ -60,6 +61,8 @@ def eval_diversity(
 
     Args:
         test_dir: Directory containing test files.
+        cut_module: Name of the CUT module whose test file (test_{cut_module}.py)
+            should be analysed.
         output_file: Optional file to save diversity analysis results.
         diversity_metric: Type of diversity to measure ('syntactic', 'semantic', 'coverage').
 
@@ -67,11 +70,11 @@ def eval_diversity(
         Dictionary with diversity metrics:
         {'diversity_score': float, 'unique_patterns': int, 'similarity': float}
     """
-    test_files = sorted(Path(test_dir).glob("test_*.py"))
+    test_files = sorted(Path(test_dir).glob(f"test_{cut_module}.py"))
     zero_result = {"diversity_score": 0.0, "unique_patterns": 0, "similarity": 0.0}
 
     if not test_files:
-        print(f"[diversity] No test_*.py files found in {test_dir}")
+        print(f"[diversity] No test_{cut_module}.py found in {test_dir}")
         return zero_result
 
     all_signatures: List[Set[str]] = []
@@ -120,10 +123,10 @@ def eval_diversity(
         "similarity": similarity,
     }
 
-    # Persist for aggregate.py
+    # Persist for aggregate.py — naming: {cut_module}_{method}_diversity.json
     results_dir = Path(__file__).parent.parent / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
-    auto_out = results_dir / f"{Path(test_dir).name}_diversity.json"
+    auto_out = results_dir / f"{cut_module}_{Path(test_dir).name}_diversity.json"
     auto_out.write_text(json.dumps(metrics, indent=2))
 
     if output_file:
@@ -144,6 +147,12 @@ def main():
         help="Directory containing test files",
     )
     parser.add_argument(
+        "--cut-module",
+        type=str,
+        required=True,
+        help="Name of the CUT module whose test file should be analysed",
+    )
+    parser.add_argument(
         "--output-file",
         type=Path,
         default=None,
@@ -160,6 +169,7 @@ def main():
     args = parser.parse_args()
     metrics = eval_diversity(
         test_dir=args.test_dir,
+        cut_module=args.cut_module,
         output_file=args.output_file,
         diversity_metric=args.diversity_metric,
     )
