@@ -1,0 +1,29 @@
+{
+  "_comment": "Third-party Python libraries used as CUT modules. Run 'python scripts/fetch_libraries.py' after editing; see README > Adding a third-party library.",
+  "libraries": {
+    "inflection": {
+      "package": "inflection",
+      "version": "0.5.1",
+      "sha256": "f38b2b640938a4f35ade69ac3d053042959b62a0f1076a5bbaa1b9526605a8a2",
+      "source_file": "inflection.py",
+      "license": "MIT",
+      "description": "String inflection (camelize, underscore, pluralize, ordinalize, ...)"
+    },
+    "roman": {
+      "package": "roman",
+      "version": "4.2",
+      "sha256": "dc3564330fba3cd06b108edc694500609830169e3479706eb1ee7f0c197e4b6c",
+      "source_file": "roman.py",
+      "license": "ZPL-2.1",
+      "description": "Integer <-> Roman numeral conversion with custom exceptions"
+    },
+    "toposort": {
+      "package": "toposort",
+      "version": "1.10",
+      "sha256": "cbdbc0d0bee4d2695ab2ceec97fe0679e9c10eab4b2a87a9372b929e70563a87",
+      "source_file": "toposort.py",
+      "license": "Apache-2.0",
+      "description": "Topological sort of dependency dicts, raises CircularDependencyError"
+    }
+  }
+}

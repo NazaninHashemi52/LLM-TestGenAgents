@@ -5,9 +5,10 @@ Supported providers (set via LLM_PROVIDER env var):
   - groq                  — Groq cloud API (free tier available at groq.com)
   - gemini                — Google Gemini API (free tier at aistudio.google.com)
   - openrouter            — OpenRouter (free models available at openrouter.ai)
+  - mock                  — offline stub for dry runs (no network, no model)
 
 Environment variables:
-  LLM_PROVIDER        one of: ollama, groq, gemini, openrouter  (default: ollama)
+  LLM_PROVIDER        one of: ollama, groq, gemini, openrouter, mock  (default: ollama)
 
   Ollama:
     OLLAMA_MODEL      model name          (default: qwen2.5-coder:7b)
@@ -28,6 +29,7 @@ Environment variables:
 """
 
 import os
+import re
 import time
 from typing import Optional
 
@@ -245,6 +247,29 @@ def _call_openrouter(
     )
 
 
+def _call_mock(prompt: str) -> str:
+    """
+    Return a minimal, always-valid test file for the CUT module named in the prompt.
+
+    Used by 'run_all.py --dry-run' to exercise the whole pipeline (generation,
+    evaluation, aggregation) without an LLM. The scores it produces are not
+    meaningful.
+    """
+    match = re.search(r"from impl\.cut\.(\w+) import \*", prompt)
+    if not match:
+        raise ValueError("mock provider: no 'from impl.cut.<module> import *' line in prompt")
+    module = match.group(1)
+    return (
+        "```python\n"
+        f"import impl.cut.{module} as cut\n"
+        "\n"
+        "def test_dry_run_public_api():\n"
+        '    """Dry run: the CUT module imports and exposes public names."""\n'
+        '    assert [name for name in dir(cut) if not name.startswith("_")]\n'
+        "```\n"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public interface
 # ---------------------------------------------------------------------------
@@ -285,8 +310,10 @@ def call_local_llm(
         return _call_gemini(prompt, model, temperature, max_tokens)
     elif provider == "openrouter":
         return _call_openrouter(prompt, model, temperature, max_tokens)
+    elif provider == "mock":
+        return _call_mock(prompt)
     else:
         raise ValueError(
             f"Unknown LLM_PROVIDER '{provider}'. "
-            f"Must be one of: ollama, groq, gemini, openrouter"
+            f"Must be one of: ollama, groq, gemini, openrouter, mock"
         )

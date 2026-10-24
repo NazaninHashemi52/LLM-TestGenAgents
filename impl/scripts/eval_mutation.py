@@ -217,7 +217,7 @@ def eval_mutation(
     }
 
     # Persist metrics for aggregate.py — naming: {cut_module}_{method}_mutation.json
-    results_dir = impl_dir / "results"
+    results_dir = Path(os.getenv("RESULTS_DIR", impl_dir / "results"))
     results_dir.mkdir(parents=True, exist_ok=True)
     auto_out = results_dir / f"{cut_module}_{Path(test_dir).name}_mutation.json"
     auto_out.write_text(json.dumps(metrics, indent=2))

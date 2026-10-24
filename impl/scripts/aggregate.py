@@ -5,6 +5,8 @@ import argparse
 import json
 from pathlib import Path
 
+from fetch_libraries import load_libraries
+
 METHODS = ("single", "competitive", "collab")
 EVAL_TYPES = ("coverage", "mutation", "diversity")
 
@@ -33,6 +35,12 @@ def _parse_result_name(stem: str):
     if method not in METHODS or eval_type not in EVAL_TYPES or not module:
         return None
     return module, method, eval_type
+
+
+def _module_source(module: str, libraries: dict) -> str:
+    """Return 'package==version' for a third-party library module, else 'built-in'."""
+    entry = libraries.get(module)
+    return f"{entry['package']}=={entry['version']}" if entry else "built-in"
 
 
 def _to_markdown(df, float_fmt="{:.4f}") -> str:
@@ -141,6 +149,8 @@ def aggregate_results(
     ordered += sorted(c for c in wide.columns if c not in ordered)
     wide = wide[ordered].reset_index()
     wide.columns.name = None
+    libraries = load_libraries()
+    wide.insert(1, "source", wide["module"].map(lambda m: _module_source(m, libraries)))
 
     # Overall: mean of each metric per method across all modules
     overall = wide.groupby("method")[ordered].mean().round(4)
@@ -167,7 +177,9 @@ def aggregate_results(
     md_cols = ["method"] + [m for m in KEY_METRICS if m in wide.columns]
     md_parts = ["# Results summary", ""]
     for module, group in wide.groupby("module", sort=True):
-        md_parts += [f"## {module}", "", _to_markdown(group[md_cols]), ""]
+        md_parts += [
+            f"## {module} ({group['source'].iloc[0]})", "", _to_markdown(group[md_cols]), ""
+        ]
     md_parts += [
         "## Overall (mean across modules)",
         "",
@@ -181,7 +193,7 @@ def aggregate_results(
     print(f"[aggregate] Overall summary saved    -> {overall_file}")
     print(f"[aggregate] Markdown report saved    -> {md_file}")
     for module, group in wide.groupby("module", sort=True):
-        print(f"\n=== {module} ===")
+        print(f"\n=== {module} ({group['source'].iloc[0]}) ===")
         print(group[md_cols].to_string(index=False))
     print(f"\n=== overall (mean across {wide['module'].nunique()} module(s)) ===")
     print(overall[["method", "n_modules"] + md_cols[1:]].to_string(index=False))

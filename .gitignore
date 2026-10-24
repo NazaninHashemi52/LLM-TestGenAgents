@@ -10,3 +10,4 @@ build/
 htmlcov/
 .mutmut-cache
 *.log
+impl/dry_run/

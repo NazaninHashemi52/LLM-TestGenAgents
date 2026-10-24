@@ -1,6 +1,6 @@
 # Results summary
 
-## calculator
+## calculator (built-in)
 
 | method | line_coverage | branch_coverage | function_coverage | score_mutation | diversity_score_diversity |
 |---|---|---|---|---|---|

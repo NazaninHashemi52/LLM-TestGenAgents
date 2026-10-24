@@ -4,6 +4,7 @@
 import argparse
 import ast
 import json
+import os
 from itertools import combinations
 from pathlib import Path
 from typing import List, Set
@@ -124,7 +125,7 @@ def eval_diversity(
     }
 
     # Persist for aggregate.py — naming: {cut_module}_{method}_diversity.json
-    results_dir = Path(__file__).parent.parent / "results"
+    results_dir = Path(os.getenv("RESULTS_DIR", Path(__file__).parent.parent / "results"))
     results_dir.mkdir(parents=True, exist_ok=True)
     auto_out = results_dir / f"{cut_module}_{Path(test_dir).name}_diversity.json"
     auto_out.write_text(json.dumps(metrics, indent=2))

@@ -31,8 +31,9 @@ Generated test suites are evaluated across three axes:
 - **Multi-agent merge pipeline** — deduplicates imports and renames conflicting test functions
 - **Three evaluation scripts** producing structured JSON output
 - **Six CUT modules** of increasing difficulty, from simple string functions to collaborating classes
+- **Three real third-party libraries** as extra targets (`inflection`, `roman`, `toposort`), pinned in `libraries.json`; adding another is one JSON entry
 - **Aggregation script** that builds one comparison table per module plus an overall average (CSV/JSON/HTML + Markdown)
-- **`run_all.py`** to run every strategy and evaluation on every module in one command
+- **`run_all.py`** to run every strategy and evaluation on every module in one command, with an offline `--dry-run`
 
 ---
 
@@ -43,6 +44,7 @@ Generated test suites are evaluated across three axes:
 ├── README.md
 └── impl/
     ├── pyproject.toml              # Project metadata and dependencies
+    ├── libraries.json              # Third-party libraries used as CUT modules (pinned)
     ├── cut/                        # Code Under Test (CUT) modules
     │   ├── __init__.py
     │   ├── calculator.py           # Stateless functions + Calculator class
@@ -50,11 +52,15 @@ Generated test suites are evaluated across three axes:
     │   ├── stack_queue.py          # Stateful data structures (Stack, circular-buffer Queue)
     │   ├── bank_account.py         # Class with custom exceptions, limits and edge cases
     │   ├── date_parser.py          # Date parsing/arithmetic with many boundary cases
-    │   └── inventory.py            # Several collaborating classes (hardest)
+    │   ├── inventory.py            # Several collaborating classes (hardest)
+    │   ├── inflection.py           # vendored: inflection 0.5.1 (MIT) — string inflection
+    │   ├── roman.py                # vendored: roman 4.2 (ZPL-2.1) — Roman numerals
+    │   └── toposort.py             # vendored: toposort 1.10 (Apache-2.0) — topological sort
     ├── src/                        # Core utilities
     │   ├── __init__.py
-    │   └── llm.py                  # LLM abstraction layer (Ollama, Groq, Gemini, OpenRouter)
+    │   └── llm.py                  # LLM abstraction layer (Ollama, Groq, Gemini, OpenRouter, mock)
     ├── scripts/                    # Generation and evaluation scripts
+    │   ├── fetch_libraries.py      # Vendor the libraries in libraries.json into cut/
     │   ├── generate_single.py      # Single-agent test generation
     │   ├── generate_competitive.py # Competitive multi-agent generation
     │   ├── generate_collab.py      # Collaborative multi-agent generation
@@ -137,6 +143,7 @@ export LLM_PROVIDER=ollama        # default — local Ollama server
 export LLM_PROVIDER=groq
 export LLM_PROVIDER=gemini
 export LLM_PROVIDER=openrouter
+export LLM_PROVIDER=mock          # offline stub used by run_all.py --dry-run
 ```
 
 ### Provider-specific variables
@@ -181,7 +188,14 @@ python scripts/run_all.py                                   # all modules, all s
 python scripts/run_all.py --modules bank_account inventory  # only some modules
 python scripts/run_all.py --skip-generate                   # re-evaluate existing tests (no LLM calls)
 python scripts/run_all.py --evaluations coverage diversity  # skip slow mutation testing
+python scripts/run_all.py --libraries                       # only the third-party libraries
+python scripts/run_all.py --libraries --dry-run             # offline pipeline check, no LLM
 ```
+
+`--dry-run` swaps in a mock LLM (`LLM_PROVIDER=mock`) that returns one trivial test per
+module, and writes tests and results under `impl/dry_run/` (git-ignored), so real
+results are never overwritten. Use it to check that a new module or library goes
+through generation, evaluation and aggregation; its scores mean nothing.
 
 A failing step (for example, the LLM returning invalid code) is reported at the end
 but does not stop the remaining runs.
@@ -256,7 +270,7 @@ python scripts/aggregate.py \
 ```
 
 Outputs:
-- `results/summary.csv` — one row per (module, method), one column per metric
+- `results/summary.csv` — one row per (module, method), one column per metric, plus a `source` column (`built-in`, or `package==version` for a third-party library)
 - `results/summary_overall.csv` — per-method mean of every metric across all modules
 - `results/summary.md` — Markdown tables (one per module plus the overall average), ready to paste into this README
 
@@ -266,7 +280,8 @@ Outputs:
 
 Results from running all three strategies on the `calculator` CUT module.
 Results for the five new modules (`string_utils`, `stack_queue`, `bank_account`,
-`date_parser`, `inventory`) will be added after running `python scripts/run_all.py`;
+`date_parser`, `inventory`) and the three libraries (`inflection`, `roman`, `toposort`)
+will be added after running `python scripts/run_all.py`;
 `results/summary.md` then contains one table per module plus the overall average.
 
 | Method | Line Coverage | Branch Coverage | Mutation Score | Diversity Score |
@@ -309,6 +324,35 @@ Edit `impl/src/llm.py`:
 1. Place the module in `impl/cut/`, e.g. `impl/cut/my_module.py`.
 2. Run `python scripts/run_all.py --modules my_module` (or pass `--cut-module my_module`
    to the individual scripts). `run_all.py` picks up every non-underscore file in `cut/` automatically.
+
+### Adding a third-party library
+
+Good targets are small, pure-Python libraries whose code lives in one self-contained
+file (standard-library imports only, no relative imports), so it can be copied into
+`cut/` and imported as `impl.cut.<name>`.
+
+1. Add an entry to `impl/libraries.json`. The key becomes the CUT module name:
+   ```json
+   "pytimeparse": {
+     "package": "pytimeparse",
+     "version": "1.1.8",
+     "sha256": "<sha256 of the .whl file>",
+     "source_file": "pytimeparse/timeparse.py",
+     "license": "MIT",
+     "description": "Parse '1h 30m' style durations"
+   }
+   ```
+   `source_file` is the file's path inside the wheel. To get the hash and the paths, run
+   `pip download --no-deps --only-binary :all: pytimeparse==1.1.8`, then
+   `sha256sum *.whl` and `unzip -l *.whl`.
+2. Run `python scripts/fetch_libraries.py pytimeparse`. It downloads the pinned wheel,
+   checks the hash, and writes `cut/pytimeparse.py` with a "vendored from" header.
+   `python scripts/fetch_libraries.py --check` checks every vendored file against the
+   registry.
+3. Run `python scripts/run_all.py --modules pytimeparse --dry-run` to check the pipeline,
+   then run it without `--dry-run`. In the summary tables the library shows as
+   `pytimeparse (pytimeparse==1.1.8)`, and the `source` column of `summary.csv` holds
+   the pinned version (built-in modules show `built-in`).
 
 ### Adding a new evaluation metric
 

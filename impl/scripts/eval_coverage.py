@@ -171,7 +171,7 @@ def eval_coverage(
 
     # Always persist metrics as JSON for aggregate.py to consume.
     # Naming convention: {cut_module}_{method}_coverage.json where method = test_dir.name
-    results_dir = Path(__file__).parent.parent / "results"
+    results_dir = Path(os.getenv("RESULTS_DIR", Path(__file__).parent.parent / "results"))
     results_dir.mkdir(parents=True, exist_ok=True)
     auto_out = results_dir / f"{cut_module}_{Path(test_dir).name}_coverage.json"
     auto_out.write_text(json.dumps(metrics, indent=2))
